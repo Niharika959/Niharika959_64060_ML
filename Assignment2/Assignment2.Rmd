@@ -1,0 +1,170 @@
+---
+title: "Assignment2"
+author: "Niharika D"
+date: "2022-10-02"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+
+#question-1
+UniversalBank<-read.csv("./UniversalBank.csv")
+head(UniversalBank) #Viewing imported dataset UniversalBank
+
+#Converting PersonalLoan to factor datatype
+UniversalBank$PersonalLoan = as.factor(UniversalBank$PersonalLoan)
+
+#Removing variables which are not used
+remove_data<-subset(UniversalBank,select=-c(ID,ZIPCode)) 
+head(remove_data)
+UniversalBank<-remove_data
+
+#checking for null values
+null_values <- is.na(UniversalBank) 
+
+```
+
+```{r}
+#Creating dummy variables for categorical variable Education
+Education_1<-ifelse(UniversalBank$Education == '1',1,0)
+Education_2<-ifelse(UniversalBank$Education == '2',1,0)
+Education_3<-ifelse(UniversalBank$Education == '3',1,0)
+
+```
+
+```{r}
+
+UniBank<-data.frame(Age=UniversalBank$Age,Experience=UniversalBank$Experience,Income=UniversalBank$Income,Family=UniversalBank$Family,CCAvg=UniversalBank$CCAvg,Education_1=Education_1,Education_2=Education_2,Education_3=Education_3,PersonalLoan=UniversalBank$PersonalLoan,Mortgage=UniversalBank$Mortgage,SecuritiesAccount=UniversalBank$SecuritiesAccount,CDAccount=UniversalBank$CDAccount,Online=UniversalBank$Online,CreditCard=UniversalBank$CreditCard)
+
+```
+
+```{r}
+#Splitting data into 60% and 40%
+set.seed(123)
+library(caret)
+Split_data <- createDataPartition(UniBank$PersonalLoan,p=.6,list=FALSE,times=1)
+Training <- UniBank[Split_data,]
+Validation <- UniBank[-Split_data,]
+```
+
+```{r}
+#Normalization
+
+Normalization <- preProcess(Training[,-(6:9)],method = c("center","scale"))
+Training_norm = predict(Normalization,Training)
+
+Validation_norm = predict(Normalization,Validation)
+
+```
+
+```{r}
+#Creating TEST Dataset with given values
+library(class)
+Test_predictor<-data.frame(Age=40,Experience=10,Income=84,Family=2,CCAvg=2,Education_1=0,Education_2=1,Education_3=0,Mortgage=0,SecuritiesAccount=0,CDAccount=0,Online=1,CreditCard=1)
+
+Normalization_test = predict(Normalization,Test_predictor)
+
+Train_predictor = Training_norm[,-9]
+Validate_predictor = Validation_norm[,-9]
+
+Train_label<-Training_norm[,9]
+
+Validate_label<-Validation_norm[,9]
+
+Prediction <-knn(Train_predictor,
+                 Normalization_test,
+                 cl=Train_label,
+                 k=1)
+Prediction
+
+```
+
+
+```{r}
+
+#question-2
+#BestValueK
+set.seed(321)
+SearchGrid <- expand.grid(k=seq(1:30))
+model <- train(PersonalLoan~.,data=Training_norm,method="knn",tuneGrid=SearchGrid)
+model
+best_k <- model$bestTune[[1]]
+best_k
+plot(model)
+#Conclusion: K=1 is the choice that balances between overfitting and ignoring the predictor information
+```
+
+```{r}
+
+#question-3
+#Confusion Matrix
+
+Prediction_new <- predict(model,Validate_predictor)
+
+confusionMatrix(Prediction_new,Validate_label)
+
+```
+
+```{r}
+#question-4
+
+testing_best_k <- knn(Train_predictor,Normalization_test , cl=Train_label, k=best_k)
+head(testing_best_k)
+
+#Conclusion: Based on the K value- we can conclude that the customer won't accept a personal loan.
+```
+```{r}
+
+#question-5
+#Splitting data into 50%,30%,20%
+set.seed(456)
+Split_data_train <- createDataPartition(UniBank$PersonalLoan,p=.5,list=FALSE,times=1)
+Train.df <- UniBank[Split_data_train,]
+
+
+Split_data_validate <- createDataPartition(UniBank$PersonalLoan,p=.3,list=FALSE,times=1)
+Validate.df <- UniBank[Split_data_validate,]
+
+Split_data_test <- createDataPartition(UniBank$PersonalLoan,p=.2,list=FALSE,times=1)
+Test.df <- UniBank[Split_data_test,]
+
+#Normalizing the data
+Normalize <- preProcess(Train.df[,-(6:9)],method = c("center","scale"))
+Train_norm.df = predict(Normalize,Train.df)
+Validate_norm.df = predict(Normalize,Validate.df)
+Test_norm.df = predict(Normalize,Test.df)
+
+#Finding knn value
+Train_predict = Train_norm.df[,-9]
+Valid_predict = Validate_norm.df[,-9]
+Test_predict = Test_norm.df[,-9]
+
+Train_label_new = Train_norm.df[,9]
+Valid_label_new = Validate_norm.df[,9]
+Test_label_new = Test_norm.df[,9]
+
+Prediction_train <- knn(Train_predict,Train_predict,cl=Train_label_new,k=best_k)
+
+Prediction_valid <- knn(Train_predict,Valid_predict,cl=Train_label_new,k=best_k)
+
+Prediction_test <- knn(Train_predict,Test_predict,cl=Train_label_new,k=best_k)
+
+#Training_data:
+confusionMatrix(Prediction_train,Train_label_new) 
+#Accuracy: 1; Sensitivity:1
+
+#Validation_data
+confusionMatrix(Prediction_valid,Valid_label_new)
+#Accuracy:0.978;Sensitivity:0.991
+
+#Test_data
+confusionMatrix(Prediction_test,Test_label_new)
+#Accuracy:0.988;Sensitivity:0.9956
+
+#Conclusion:Based on the values of Accuracy and Sensitivity observed through confusionMatrix, we can conclude that the model works better on Test data as it shows higher accuracy and Sensitivity values.
+
+```
