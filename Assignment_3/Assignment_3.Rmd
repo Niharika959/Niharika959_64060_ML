@@ -1,0 +1,146 @@
+---
+title: "Assignment 3"
+author: "Niharika Dobanaboina"
+date: "2022-10-17"
+output: pdf_document
+align: center
+---
+
+\newpage
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tinytex)
+```
+
+\textcolor{blue}{\textbf{\underline{Reading the CSV file:}}}
+
+```{r}
+
+UniversalBank<- read.csv("UniversalBank.csv")
+head(UniversalBank)
+```
+\textcolor{blue}{\textbf{\underline{Converting PersonalLoan,Online,CreditCard variables to factors:}}}
+
+```{r}
+UniversalBank$PersonalLoan<-as.factor(UniversalBank$PersonalLoan)
+UniversalBank$Online<-as.factor(UniversalBank$Online)
+UniversalBank$CreditCard<-as.factor(UniversalBank$CreditCard)
+
+```
+
+\textcolor{blue}{\textbf{\underline{Splitting data into Training and Validation sets:}}}
+
+```{r}
+set.seed(345)
+library(caret)
+
+Split_data<-createDataPartition(UniversalBank$PersonalLoan,p=.6,list=FALSE,times=1)
+Training_set<-UniversalBank[Split_data,]
+Validation_set<-UniversalBank[-Split_data,]
+
+```
+
+\textcolor{blue}{\textbf{\underline{Normalizing training and Validation set:}}}
+
+```{r}
+
+Normalization<-preProcess(Training_set[,-c(10,13,14)],method=c("center","scale"))
+
+Training_norm<-predict(Normalization,Training_set)
+Validation_norm<-predict(Normalization,Validation_set)
+
+```
+\newpage
+\textcolor{blue}{\textbf{\underline{A. Creating a pivot table for the training data with CreditCard as a row variable, PersonalLoan as a}}}
+\textcolor{blue}{\textbf{\underline{secondary row variable and Online as a column variable:}}}
+
+
+```{r}
+
+table_1<-table(Training_norm$CreditCard,Training_norm$PersonalLoan,Training_norm$Online)
+View(table_1)
+
+prop_table1<-prop.table(table_1)
+
+View(prop_table1)
+
+```
+
+\textcolor{blue}{\textbf{\underline{B. Probabality of a customer accepting the loan offer who owns a credit card and is also actively using}}}
+\textcolor{blue}{\textbf{\underline{online banking services:}}}
+
+$$\text{From the Pivot table in A,}$$
+$$ P(Loan=1|CreditCard=1,Online=1) = 52/(52+495) = 0.095 $$
+
+\textcolor{blue}{\textbf{\underline{C. Creating a Pivot table having Loan as a row variable and CreditCard as column Variable:}}}
+
+```{r}
+
+table_loan_cc <- table(Training_norm$PersonalLoan,Training_norm$CreditCard)
+View(table_loan_cc)
+
+```
+
+\textcolor{blue}{\textbf{\underline{C. Creating a Pivot table having Loan as a row variable and Online as column Variable:}}}
+
+```{r}
+
+table_loan_online <- with(Training_norm,table(PersonalLoan,Online))
+View(table_loan_online)
+
+```
+
+\textcolor{blue}{\textbf{\underline{D. (i)P(CC=1|Loan=1):}}}
+
+$$ P(CC=1\cap Loan=1)/P(Loan=1)=86/288 = 0.2986$$
+\textcolor{blue}{\textbf{\underline{D. (ii.)P(Online=1| Loan=1):}}}
+
+$$ P(Online=1 \cap Loan=1)/P(Loan=1) = 176/288 = 0.6111 $$
+\textcolor{blue}{\textbf{\underline{D. (iii.) P(Loan=1):}}}
+
+```{r}
+
+table_loan <- table(Training_norm$PersonalLoan)
+View(table_loan)
+
+prop_loan<-prop.table(table_loan)
+View(prop_loan)
+
+```
+
+$$P(Loan=1) = 0.096 $$
+\textcolor{blue}{\textbf{\underline{D. (iv.) P(CC=1|Loan=0):}}}
+$$P(CC=1 \cap Loan=0)/P(Loan=0) = 820/271 = 0.3023$$
+\textcolor{blue}{\textbf{\underline{D. (v.) P(Online=1|Loan=0):}}}
+
+$$P(Online=1 \cap Loan=0)/P(Loan=0) = 0.5896$$
+\textcolor{blue}{\textbf{\underline{D. (vi.) P(Loan=0):}}}
+
+$$P(Loan=0)=0.904$$
+\textcolor{blue}{\textbf{\underline{E. Computing Naive Bayes probablitity:}}}
+
+$$P(Loan=1|CC=1,Online=1) = $$
+$$= P(CC=1|Loan=1) * P(Online=1|Loan=1)*P(Loan=1)/P(CC=1|Loan=1 *) P(Online=1|Loan=1)*$$
+$$P(Loan=1)+P(CC=1|Loan=0) * P(Online=1|Loan=0) *P(Loan=0)$$
+$$ = 0.2986 * 0.6111 * 0.096/(0.2986 * 0.6111 * 0.096 + 0.3023 * 0.5896 * 0.904) $$
+$$ = 0.09802$$
+$$Therefore, P(Loan=1|CC=1,Online=1) = 0.09802$$
+\textcolor{blue}{\textbf{\underline{F. Comparison of P(Loan=1|CC=1,Online=1}}}
+
+$$\text{Upon comparing the above computed Naive Bayes Probablity with the value obtained in B,}$$
+$$ \text{it can be observed that both the values are closely same.However,the probablity obtained}$$  $$\text{in B is more precise as it is calculated directly from the frequency tables based on the count.}$$
+\textcolor{blue}{\textbf{\underline{G. Naive Bayes Probablity:}}}
+
+```{r}
+library(e1071)
+
+nb_model<-naiveBayes(PersonalLoan~Online+CreditCard,data=Training_norm)
+nb_model
+
+
+```
+
+
+$$\text{Comparing this value with the probablity obtained in (E), Naive Bayes calculates}$$
+$$\text{probablities considering conditional independence. Therefore, the probablity calculated in (G) is more accurate.}$$
